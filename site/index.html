@@ -52,7 +52,7 @@ function makeBeats(start,size,beatCount,burst,busBytes){
   const alignedAddress=Math.floor(address/size)*size;
   const lowerLane=address%busBytes,upperLane=(alignedAddress+size-1)%busBytes;
   const firstByte=address;
-  const lastByte=(i===0&&start%size!==0)?alignedStart+size-1:address+size-1;
+  const lastByte=burst===0?alignedStart+size-1:((i===0&&start%size!==0)?alignedStart+size-1:address+size-1);
   let strobe=0;const enabledBytes=[];
   for(let a=firstByte;a<=lastByte;a++){
    const lane=a%busBytes;
