@@ -42,50 +42,48 @@
 const $=id=>document.getElementById(id);
 const hex=n=>'0x'+n.toString(16).toUpperCase().padStart(4,'0');
 function parseAddr(raw){raw=raw.trim();if(/^0x[\da-f]+$/i.test(raw))return Number.parseInt(raw,16);if(/^\d+$/.test(raw))return Number(raw);return NaN}
-function burstData(start,size,beats,burst,busBytes){
- const aligned=Math.floor(start/size)*size,wrapBytes=size*beats,wrapBase=Math.floor(start/wrapBytes)*wrapBytes,items=[];
- for(let i=0;i<beats;i++){
-  let addr,note;
-  if(i===0){addr=start;note=start%size?'Unaligned first beat':'Aligned first beat'}
-  else if(burst===0){addr=start;note='FIXED: same address'}
-  else if(burst===1){addr=aligned+i*size;note='INCR: next transfer boundary'}
-  else {addr=wrapBase+((start-wrapBase+i*size)%wrapBytes);note='WRAP: inside wrap region'}
-  const firstAligned=Math.floor(start/size)*size;
-  const byteStart=(i===0?start:addr);
-  // First unaligned transfer only enables bytes from AxADDR to the end of its aligned transfer-size window.
-  const byteEnd=(i===0?firstAligned+size-1:addr+size-1);
-  let mask=0;const bytes=[];
-  for(let a=byteStart;a<=byteEnd;a++){
+function makeBeats(start,size,beatCount,burst,busBytes){
+ const alignedStart=Math.floor(start/size)*size,wrapBytes=size*beatCount,wrapBase=Math.floor(start/wrapBytes)*wrapBytes,beats=[];
+ for(let i=0;i<beatCount;i++){
+  let address;
+  if(burst===0)address=start;
+  else if(burst===1)address=i===0?start:alignedStart+i*size;
+  else address=wrapBase+((start-wrapBase+i*size)%wrapBytes);
+  const alignedAddress=Math.floor(address/size)*size;
+  const lowerLane=address%busBytes,upperLane=(alignedAddress+size-1)%busBytes;
+  const firstByte=address;
+  const lastByte=(i===0&&start%size!==0)?alignedStart+size-1:address+size-1;
+  let strobe=0;const enabledBytes=[];
+  for(let a=firstByte;a<=lastByte;a++){
    const lane=a%busBytes;
-   if(a>=0 && lane>=0 && lane<busBytes){mask|=(1<<lane);bytes.push({address:a,lane})}
+   const laneEnabled=lowerLane<=upperLane?(lane>=lowerLane&&lane<=upperLane):(lane>=lowerLane||lane<=upperLane);
+   if(laneEnabled){strobe|=(1<<lane);enabledBytes.push({address:a,lane});}
   }
-  // Use unsigned mask math for wider buses (up to 16 lanes).
-  items.push({index:i,addr,aligned:Math.floor(addr/size)*size,note,mask:mask>>>0,bytes,firstUnaligned:i===0&&start%size!==0});
+  beats.push({index:i,address,alignedAddress,strobe:strobe>>>0,enabledBytes,partial:i===0&&start%size!==0});
  }
- return {items,aligned,wrapBase,wrapBytes};
+ return {beats,alignedStart,wrapBase,wrapBytes};
 }
+function showError(message){$('summary').innerHTML='<span class="metric error">'+message+'</span>';$('rows').innerHTML='';$('memory').innerHTML='';$('memoryNote').textContent='';}
 function calc(){
- const start=parseAddr($('addr').value),size=2**Number($('size').value),axlen=Number($('len').value),beats=axlen+1,burst=Number($('burst').value),bus=Number($('bus').value);
- const summary=$('summary'),rows=$('rows'),memory=$('memory'),memoryNote=$('memoryNote');
- if(!Number.isSafeInteger(start)||start<0){summary.innerHTML='<span class="metric error">Enter a valid non-negative address.</span>';rows.innerHTML='';memory.innerHTML='';memoryNote.textContent='';return}
- if(size>bus){summary.innerHTML='<span class="metric error">AxSIZE exceeds the selected data bus width.</span>';rows.innerHTML='';memory.innerHTML='';memoryNote.textContent='';return}
- if(burst===2&&start%size!==0){summary.innerHTML='<span class="metric error">Invalid WRAP: AxADDR must be aligned to the transfer size.</span>';rows.innerHTML='';memory.innerHTML='';memoryNote.textContent='';return}
- if(burst===2&&![2,4,8,16].includes(beats)){summary.innerHTML='<span class="metric error">Invalid AXI3 WRAP: burst length must be 2, 4, 8, or 16 beats (AxLEN 1, 3, 7, 15).</span>';rows.innerHTML='';memory.innerHTML='';memoryNote.textContent='';return}
- const data=burstData(start,size,beats,burst,bus),items=data.items;
- const strobeBits=bus;
- summary.innerHTML='<span class="metric">AxLEN <b>'+axlen+'</b> → <b>'+beats+'</b> beat'+(beats===1?'':'s')+'</span><span class="metric">Bytes/transfer <b>'+size+'</b></span><span class="metric">Bus lanes <b>'+bus+'</b></span><span class="metric">Mode <b>'+['FIXED','INCR','WRAP'][burst]+'</b></span>';
- rows.innerHTML=items.map(x=>'<tr><td>'+(x.index+1)+'</td><td>'+hex(x.addr)+'</td><td>'+hex(x.aligned)+'</td><td><span class="strobe">0x'+x.mask.toString(16).toUpperCase().padStart(bus/4,'0')+'</span> · '+x.mask.toString(2).padStart(strobeBits,'0')+'</td><td>'+x.bytes.map(b=>hex(b.address)).join(', ')+'</td></tr>').join('');
- const laneHead='<div class="memrow" style="--lanes:'+bus+'"><div class="memlabel">Beat / lane</div>'+Array.from({length:bus},(_,lane)=>'<div class="lanehead">'+lane+'</div>').join('')+'</div>';
- const memRows=items.map(x=>{
-  const enabled=new Map(x.bytes.map(b=>[b.lane,b.address]));
-  const cells=Array.from({length:bus},(_,lane)=>{
-   if(enabled.has(lane)){const a=enabled.get(lane);return '<div class="byte '+(x.firstUnaligned?'partial':'write')+'"><span class="lane">W</span><span class="addr">'+hex(a)+'</span></div>'}
-   return '<div class="byte skip"><span class="lane">—</span><span class="addr">—</span></div>';
-  }).join('');
-  return '<div class="memrow" style="--lanes:'+bus+'"><div class="memlabel">Beat '+(x.index+1)+'<br>WSTRB '+x.mask.toString(16).toUpperCase().padStart(bus/4,'0')+'</div>'+cells+'</div>';
+ const start=parseAddr($('addr').value),size=2**Number($('size').value),axlen=Number($('len').value),beatCount=axlen+1,burst=Number($('burst').value),busBytes=Number($('bus').value);
+ if(!Number.isSafeInteger(start)||start<0){showError('Enter a valid non-negative byte address.');return}
+ if(size>busBytes){showError('Invalid transfer: 2^AxSIZE cannot exceed the data bus width.');return}
+ if(burst===3){showError('AxBURST = 2\'b11 is reserved in AXI3.');return}
+ if(burst===2&&start%size!==0){showError('Invalid WRAP: AxADDR must be aligned to Number_Bytes.');return}
+ if(burst===2&&![2,4,8,16].includes(beatCount)){showError('Invalid AXI3 WRAP length: choose 2, 4, 8, or 16 beats (AxLEN 1, 3, 7, or 15).');return}
+ const beats=makeBeats(start,size,beatCount,burst,busBytes).beats,startPage=Math.floor(start/4096);
+ if(beats.some(b=>b.enabledBytes.some(x=>Math.floor(x.address/4096)!==startPage))){showError('Invalid AXI burst: the accessed byte range crosses a 4 KB boundary.');return}
+ $('summary').innerHTML='<span class="metric">AxLEN <b>'+axlen+'</b> → <b>'+beatCount+' beat'+(beatCount===1?'':'s')+'</b></span><span class="metric">Number_Bytes <b>'+size+'</b></span><span class="metric">Data bus <b>'+(busBytes*8)+' bits / '+busBytes+' lanes</b></span><span class="metric">AxBURST <b>'+['FIXED','INCR','WRAP'][burst]+'</b></span><span class="metric">WSTRB width <b>'+busBytes+' bits</b></span>';
+ $('rows').innerHTML=beats.map(b=>'<tr><td>'+(b.index+1)+'</td><td>'+hex(b.address)+'</td><td>'+hex(b.alignedAddress)+'</td><td><span class="strobe">0x'+b.strobe.toString(16).toUpperCase().padStart(busBytes/4,'0')+'</span> · '+b.strobe.toString(2).padStart(busBytes,'0')+'</td><td>'+b.enabledBytes.map(x=>hex(x.address)+' (L'+x.lane+')').join(', ')+'</td></tr>').join('');
+ const lanes=Array.from({length:busBytes},(_,i)=>busBytes-1-i);
+ const head='<div class="memrow" style="--lanes:'+busBytes+'"><div class="memlabel">Beat / lane</div>'+lanes.map(l=>'<div class="lanehead">L'+l+'</div>').join('')+'</div>';
+ const memRows=beats.map(b=>{
+  const enabled=new Map(b.enabledBytes.map(x=>[x.lane,x.address]));
+  const cells=lanes.map(lane=>enabled.has(lane)?'<div class="byte '+(b.partial?'partial':'write')+'"><span class="lane">WRITE</span><span class="addr">'+hex(enabled.get(lane))+'</span></div>':'<div class="byte skip"><span class="lane">NO WRITE</span><span class="addr">—</span></div>').join('');
+  return '<div class="memrow" style="--lanes:'+busBytes+'"><div class="memlabel">Beat '+(b.index+1)+'<br>WSTRB '+b.strobe.toString(2).padStart(busBytes,'0')+'</div>'+cells+'</div>';
  }).join('');
- memory.innerHTML=laneHead+memRows;
- memoryNote.textContent=(start%size?'Unaligned start: the first beat is partial; later INCR beats continue at transfer-size boundaries. ':'Aligned start: the first beat uses the full transfer-size lane set. ')+ 'Cells show the byte address selected for each enabled lane; “—” means that lane is not written on that beat. FIXED/WRAP addressing follows the selected burst mode.';
+ $('memory').innerHTML=head+memRows;
+ $('memoryNote').textContent=(start%size?'Unaligned first beat: bytes from AxADDR through Aligned_Address + Number_Bytes − 1 are enabled. ':'Aligned start: the first beat enables the full transfer-size range. ')+'Lane order is WSTRB[MSB] on the left through WSTRB[0] on the right. Highlighted cells are written; muted cells are not written by that beat.';
 }
 $('calculate').addEventListener('click',calc);['addr','size','len','burst','bus'].forEach(id=>$(id).addEventListener('change',calc));$('addr').addEventListener('keydown',e=>{if(e.key==='Enter')calc()});calc();
 </script></body></html>
