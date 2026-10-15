@@ -17,8 +17,7 @@
 <section class="hero"><div class="eyebrow">AMBA AXI3 · UVM VERIFICATION</div><h1>See the burst.<br><span style="color:var(--accent)">See every byte.</span></h1><p class="lead">Explore AXI3 burst addresses, AxLEN, write strobes, and byte-lane effects. The diagrams connect protocol concepts to the actual files in this repository.</p><div class="actions"><a class="btn primary" href="#lab">Open burst lab ↓</a><a class="btn" href="#testbench">Testbench map ↓</a></div></section>
 <section class="section"><div class="sectionhead"><div class="eyebrow">AT A GLANCE</div><h2>Three things to track</h2></div><div class="cards"><article class="card"><span class="tag">01 / ADDRESS</span><h3>AxADDR + AxSIZE</h3><p>AxADDR is the start byte address. AxSIZE encodes bytes per transfer as 2<sup>AxSIZE</sup>.</p></article><article class="card"><span class="tag">02 / LENGTH</span><h3>AxLEN is zero-based</h3><p>AxLEN is the number of transfers minus one. Total beats = AxLEN + 1 (AXI3 supports up to 16 beats).</p></article><article class="card"><span class="tag">03 / WRITE DATA</span><h3>WSTRB selects lanes</h3><p>Each WSTRB bit qualifies one byte lane on WDATA. A zero bit means that byte lane is not written.</p></article></div></section>
 <section class="section" id="lab"><div class="sectionhead"><div class="eyebrow">INTERACTIVE TOOL</div><h2>Burst address &amp; strobe lab</h2><p>Choose a bus width and transaction. AxLEN uses the AXI encoding (0 means one beat); the table shows each beat's address, lane mask, and byte addresses.</p></div>
-<div class="lab"><div class="controls"><div class="field"><label for="addr">AxADDR (hex or decimal)</label><input id="addr" value="0x1023" inputmode="text"></div><div class="field"><label for="size">AxSIZE</label><select id="size"><option value="0">0 · 1 byte</option><option value="1">1 · 2 bytes</option><option value="2" selected>2 · 4 bytes</option><option value="3">3 · 8 bytes</option><option value="4">4 · 16 bytes</option></select></div><div class="field"><label for="len">AxLEN</label><select id="len"><option value="0">0 · 1 beat</option><option value="1">1 · 2 beats</option><option value="2">2 · 3 beats</option><option value="3" selected>3 · 4 beats</option><option value="7">7 · 8 beats</option><option value="15">15 · 16 beats</option></select></div><div class="field"><label for="burst">AxBURST</label><select id="burst"><option value="0">FIXED</option><option value="1" selected>INCR</option><option value="2">WRAP</option></select></div><div class="field"><label for="bus">Data bus</label><select id="bus"><option value="4">32-bit · 4 lanes</option><option value="8" selected>64-bit · 8 lanes</option><option value="16">128-bit · 16 lanes</option></select></div><button class="btn primary" id="calculate">Recalculate</button></div>
-<div id="summary" class="summary" role="status" aria-live="polite"></div><div class="tablewrap"><table class="table"><thead><tr><th>Beat</th><th>Address</th><th>Aligned address</th><th>WSTRB (lane N…0)</th><th>Enabled bytes</th></tr></thead><tbody id="rows"></tbody></table></div><p class="hint">WSTRB is shown in hexadecimal and binary. The memory illustration below shows enabled byte lanes in green, the partial first beat in amber, and untouched lanes in muted cells.</p>
+<div class="lab"><div class="controls"><div class="field"><label for="addr">AxADDR (hex or decimal)</label><input id="addr" value="0x1023" inputmode="text"></div><div class="field"><label for="size">AxSIZE</label><select id="size"><option value="0">0 · 1 byte</option><option value="1">1 · 2 bytes</option><option value="2" selected>2 · 4 bytes</option><option value="3">3 · 8 bytes</option><option value="4">4 · 16 bytes</option></select></div><div class="field"><label for="len">AxLEN (protocol mode)</label><select id="len"><option value="0">0 · 1 beat</option><option value="1">1 · 2 beats</option><option value="2">2 · 3 beats</option><option value="3" selected>3 · 4 beats</option><option value="7">7 · 8 beats</option><option value="15">15 · 16 beats</option></select></div><div class="field"><label for="burst">AxBURST</label><select id="burst"><option value="0">FIXED</option><option value="1" selected>INCR</option><option value="2">WRAP</option></select></div><div class="field"><label for="bus">Data bus</label><select id="bus"><option value="4" selected>32-bit · 4 lanes</option><option value="8">64-bit · 8 lanes</option><option value="16">128-bit · 16 lanes</option></select></div><div class="field"><label for="mode">Calculation mode</label><select id="mode"><option value="bytes" selected>Keep byte count constant</option><option value="axi">Follow AxLEN exactly</option></select></div><div class="field"><label for="target">Requested bytes</label><input id="target" type="number" min="1" max="4096" value="16"></div><button class="btn primary" id="calculate">Recalculate</button></div><div id="summary" class="summary" role="status" aria-live="polite"></div><div class="tablewrap"><table class="table"><thead><tr><th>Beat</th><th>Address</th><th>Aligned address</th><th>WSTRB (lane N…0)</th><th>Enabled bytes</th></tr></thead><tbody id="rows"></tbody></table></div><p class="hint">WSTRB is shown in hexadecimal and binary. The memory illustration below shows enabled byte lanes in green, the partial first beat in amber, and untouched lanes in muted cells.</p>
 </div></section>
 <section class="section"><div class="sectionhead"><div class="eyebrow">BYTE-LANE VIEW</div><h2>Which bytes are written?</h2><p>Each row is one WDATA beat. Lane 0 maps to the lowest byte lane; a highlighted cell is enabled by that beat's WSTRB.</p></div><div class="lab"><div id="memory" class="memorywrap" aria-live="polite"></div><div class="legend"><span><i class="swatch write"></i>Enabled byte lane</span><span><i class="swatch partial"></i>Partial / unaligned first beat</span><span><i class="swatch skip"></i>Not written by this beat</span></div><p class="note" id="memoryNote"></p></div></section>
 <section class="section" id="testbench"><div class="sectionhead"><div class="eyebrow">REPOSITORY MAP</div><h2>Testbench architecture</h2><p>Conceptual signal flow from stimulus through the DUT/interface to observation and checking. File names below match the current repository tree.</p></div><div class="diagram-card"><div class="diagram" role="img" aria-label="Sequence and test feed master agent into AXI virtual interface and slave agent; monitors feed the environment and scoreboard."><div class="node"><b>Test / Sequence</b><small>axi_test_pkg.sv<br>master_sequences.sv</small></div><div class="arrow">→</div><div class="node busnode"><b>Master agent</b><small>master_driver.sv<br>master_sequencer.sv</small></div><div class="arrow">↔</div><div class="node"><b>AXI interface</b><small>axi_vif.sv</small></div></div><div class="diagram" style="margin-top:10px"><div class="node"><b>Master monitor</b><small>master_monitor.sv</small></div><div class="arrow">→</div><div class="node"><b>Environment / scoreboard</b><small>environment.sv<br>scoreboard.sv</small></div><div class="arrow">←</div><div class="node"><b>Slave agent</b><small>slave_driver.sv<br>slave_monitor.sv</small></div></div><div class="filemap">
@@ -42,48 +41,55 @@
 const $=id=>document.getElementById(id);
 const hex=n=>'0x'+n.toString(16).toUpperCase().padStart(4,'0');
 function parseAddr(raw){raw=raw.trim();if(/^0x[\da-f]+$/i.test(raw))return Number.parseInt(raw,16);if(/^\d+$/.test(raw))return Number(raw);return NaN}
-function makeBeats(start,size,beatCount,burst,busBytes){
+function makeBeats(start,size,beatCount,burst,busBytes,byteGoal){
  const alignedStart=Math.floor(start/size)*size,wrapBytes=size*beatCount,wrapBase=Math.floor(start/wrapBytes)*wrapBytes,beats=[];
+ let remaining=byteGoal;
  for(let i=0;i<beatCount;i++){
   let address;
   if(burst===0)address=start;
   else if(burst===1)address=i===0?start:alignedStart+i*size;
   else address=wrapBase+((start-wrapBase+i*size)%wrapBytes);
   const alignedAddress=Math.floor(address/size)*size;
-  const lowerLane=address%busBytes,upperLane=(alignedAddress+size-1)%busBytes;
-  const firstByte=address;
-  const lastByte=burst===0?alignedStart+size-1:((i===0&&start%size!==0)?alignedStart+size-1:address+size-1);
-  let strobe=0;const enabledBytes=[];
+  let firstByte,lastByte;
+  if(burst===0){firstByte=start;lastByte=alignedStart+size-1}
+  else if(burst===1){
+   firstByte=i===0?start:address;
+   lastByte=i===0?alignedStart+size-1:address+size-1;
+   if(byteGoal!==null){lastByte=Math.min(lastByte,start+byteGoal-1);firstByte=Math.max(firstByte,start)}
+  } else {firstByte=address;lastByte=address+size-1}
+  const enabledBytes=[];let strobe=0;
   for(let a=firstByte;a<=lastByte;a++){
    const lane=a%busBytes;
-   const laneEnabled=lowerLane<=upperLane?(lane>=lowerLane&&lane<=upperLane):(lane>=lowerLane||lane<=upperLane);
-   if(laneEnabled){strobe|=(1<<lane);enabledBytes.push({address:a,lane});}
+   if(a>=0&&lane>=0&&lane<busBytes){strobe|=(1<<lane);enabledBytes.push({address:a,lane})}
   }
-  beats.push({index:i,address,alignedAddress,strobe:strobe>>>0,enabledBytes,partial:i===0&&start%size!==0});
+  beats.push({index:i,address,alignedAddress,strobe:strobe>>>0,enabledBytes,partial:enabledBytes.length<size&&(i===0||i===beatCount-1)});
+  if(byteGoal!==null)remaining-=enabledBytes.length;
  }
  return {beats,alignedStart,wrapBase,wrapBytes};
 }
 function showError(message){$('summary').innerHTML='<span class="metric error">'+message+'</span>';$('rows').innerHTML='';$('memory').innerHTML='';$('memoryNote').textContent='';}
 function calc(){
- const start=parseAddr($('addr').value),size=2**Number($('size').value),axlen=Number($('len').value),beatCount=axlen+1,burst=Number($('burst').value),busBytes=Number($('bus').value);
+ const start=parseAddr($('addr').value),size=2**Number($('size').value),axlen=Number($('len').value),protocolBeats=axlen+1,burst=Number($('burst').value),busBytes=Number($('bus').value),mode=$('mode').value,target=Number($('target').value);
  if(!Number.isSafeInteger(start)||start<0){showError('Enter a valid non-negative byte address.');return}
  if(size>busBytes){showError('Invalid transfer: 2^AxSIZE cannot exceed the data bus width.');return}
- if(burst===3){showError('AxBURST = 2\'b11 is reserved in AXI3.');return}
  if(burst===2&&start%size!==0){showError('Invalid WRAP: AxADDR must be aligned to Number_Bytes.');return}
- if(burst===2&&![2,4,8,16].includes(beatCount)){showError('Invalid AXI3 WRAP length: choose 2, 4, 8, or 16 beats (AxLEN 1, 3, 7, or 15).');return}
- const beats=makeBeats(start,size,beatCount,burst,busBytes).beats,startPage=Math.floor(start/4096);
+ if(burst===2&&![2,4,8,16].includes(protocolBeats)){showError('Invalid AXI3 WRAP length: choose 2, 4, 8, or 16 beats (AxLEN 1, 3, 7, or 15).');return}
+ if(mode==='bytes'&&burst!==1){showError('Keep-byte-count mode is for INCR bursts. Select INCR or switch to Follow AxLEN exactly.');return}
+ if(mode==='bytes'&&(!Number.isInteger(target)||target<1||target>4096)){showError('Requested bytes must be an integer from 1 to 4096.');return}
+ const byteGoal=mode==='bytes'?target:null;
+ const beatCount=mode==='bytes'?Math.ceil(((start%size)+target)/size):protocolBeats;
+ if(beatCount>16){showError('This AXI3 burst would need '+beatCount+' beats. AXI3 supports at most 16 beats; reduce requested bytes or transfer size.');return}
+ if(burst===2&&mode==='axi'&&![2,4,8,16].includes(beatCount)){showError('Invalid AXI3 WRAP length: choose 2, 4, 8, or 16 beats.');return}
+ const beats=makeBeats(start,size,beatCount,burst,busBytes,byteGoal).beats,startPage=Math.floor(start/4096);
  if(beats.some(b=>b.enabledBytes.some(x=>Math.floor(x.address/4096)!==startPage))){showError('Invalid AXI burst: the accessed byte range crosses a 4 KB boundary.');return}
- $('summary').innerHTML='<span class="metric">AxLEN <b>'+axlen+'</b> → <b>'+beatCount+' beat'+(beatCount===1?'':'s')+'</b></span><span class="metric">Number_Bytes <b>'+size+'</b></span><span class="metric">Data bus <b>'+(busBytes*8)+' bits / '+busBytes+' lanes</b></span><span class="metric">AxBURST <b>'+['FIXED','INCR','WRAP'][burst]+'</b></span><span class="metric">WSTRB width <b>'+busBytes+' bits</b></span>';
+ const actualBytes=beats.reduce((n,b)=>n+b.enabledBytes.length,0);
+ $('summary').innerHTML='<span class="metric">Mode <b>'+(mode==='bytes'?'Preserve byte count':'AXI burst semantics')+'</b></span><span class="metric">Bytes written <b>'+actualBytes+'</b></span><span class="metric">Beats <b>'+beatCount+'</b></span><span class="metric">Effective AxLEN <b>'+(beatCount-1)+'</b></span><span class="metric">Number_Bytes <b>'+size+'</b></span><span class="metric">Bus <b>'+(busBytes*8)+' bits</b></span><span class="metric">AxBURST <b>'+['FIXED','INCR','WRAP'][burst]+'</b></span>';
  $('rows').innerHTML=beats.map(b=>'<tr><td>'+(b.index+1)+'</td><td>'+hex(b.address)+'</td><td>'+hex(b.alignedAddress)+'</td><td><span class="strobe">0x'+b.strobe.toString(16).toUpperCase().padStart(busBytes/4,'0')+'</span> · '+b.strobe.toString(2).padStart(busBytes,'0')+'</td><td>'+b.enabledBytes.map(x=>hex(x.address)+' (L'+x.lane+')').join(', ')+'</td></tr>').join('');
  const lanes=Array.from({length:busBytes},(_,i)=>busBytes-1-i);
  const head='<div class="memrow" style="--lanes:'+busBytes+'"><div class="memlabel">Beat / lane</div>'+lanes.map(l=>'<div class="lanehead">L'+l+'</div>').join('')+'</div>';
- const memRows=beats.map(b=>{
-  const enabled=new Map(b.enabledBytes.map(x=>[x.lane,x.address]));
-  const cells=lanes.map(lane=>enabled.has(lane)?'<div class="byte '+(b.partial?'partial':'write')+'"><span class="lane">WRITE</span><span class="addr">'+hex(enabled.get(lane))+'</span></div>':'<div class="byte skip"><span class="lane">NO WRITE</span><span class="addr">—</span></div>').join('');
-  return '<div class="memrow" style="--lanes:'+busBytes+'"><div class="memlabel">Beat '+(b.index+1)+'<br>WSTRB '+b.strobe.toString(2).padStart(busBytes,'0')+'</div>'+cells+'</div>';
- }).join('');
+ const memRows=beats.map(b=>{const enabled=new Map(b.enabledBytes.map(x=>[x.lane,x.address]));const cells=lanes.map(lane=>enabled.has(lane)?'<div class="byte '+(b.partial?'partial':'write')+'"><span class="lane">WRITE</span><span class="addr">'+hex(enabled.get(lane))+'</span></div>':'<div class="byte skip"><span class="lane">NO WRITE</span><span class="addr">—</span></div>').join('');return '<div class="memrow" style="--lanes:'+busBytes+'"><div class="memlabel">Beat '+(b.index+1)+'<br>WSTRB '+b.strobe.toString(2).padStart(busBytes,'0')+'</div>'+cells+'</div>'}).join('');
  $('memory').innerHTML=head+memRows;
- $('memoryNote').textContent=(start%size?'Unaligned first beat: bytes from AxADDR through Aligned_Address + Number_Bytes − 1 are enabled. ':'Aligned start: the first beat enables the full transfer-size range. ')+'Lane order is WSTRB[MSB] on the left through WSTRB[0] on the right. Highlighted cells are written; muted cells are not written by that beat.';
+ $('memoryNote').textContent=mode==='bytes'?'Exact byte-count mode: the calculator derives the minimum INCR beat count and masks the final beat so exactly '+target+' contiguous bytes are written. Effective AxLEN is therefore derived and can differ from the protocol-mode selection.':'AXI mode: AxLEN fixes the number of beats. An unaligned INCR start makes the first transfer partial, so fewer than AxLEN+1 times Number_Bytes bytes may be enabled unless the master uses extra beats or adjusts WSTRB.';
 }
-$('calculate').addEventListener('click',calc);['addr','size','len','burst','bus'].forEach(id=>$(id).addEventListener('change',calc));$('addr').addEventListener('keydown',e=>{if(e.key==='Enter')calc()});calc();
+$('calculate').addEventListener('click',calc);['addr','size','len','burst','bus','mode','target'].forEach(id=>$(id).addEventListener('change',()=>{if(id==='size'||id==='len')$('target').value=(Number($('len').value)+1)*(2**Number($('size').value));calc()}));$('addr').addEventListener('keydown',e=>{if(e.key==='Enter')calc()});$('mode').addEventListener('change',()=>{$('len').disabled=$('mode').value==='bytes';calc()});$('burst').addEventListener('change',()=>{$('mode').disabled=Number($('burst').value)!==1;calc()});$('mode').disabled=false;calc();
 </script></body></html>
