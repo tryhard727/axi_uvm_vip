@@ -78,6 +78,7 @@ function calc(){
  if(mode==='bytes'&&(!Number.isInteger(target)||target<1||target>4096)){showError('Requested bytes must be an integer from 1 to 4096.');return}
  const byteGoal=mode==='bytes'?target:null;
  const beatCount=mode==='bytes'?Math.ceil(((start%size)+target)/size):protocolBeats;
+ if(mode==='bytes')$('len').value=String(beatCount-1);
  if(beatCount>16){showError('This AXI3 burst would need '+beatCount+' beats. AXI3 supports at most 16 beats; reduce requested bytes or transfer size.');return}
  if(burst===2&&mode==='axi'&&![2,4,8,16].includes(beatCount)){showError('Invalid AXI3 WRAP length: choose 2, 4, 8, or 16 beats.');return}
  const beats=makeBeats(start,size,beatCount,burst,busBytes,byteGoal).beats,startPage=Math.floor(start/4096);
